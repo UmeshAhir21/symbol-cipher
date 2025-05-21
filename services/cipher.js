@@ -35,6 +35,7 @@ const upperMap = Object.fromEntries(
 );
 
 const fullMap = { ...symbolMap, ...upperMap };
+
 const reverseMap = Object.fromEntries(
   Object.entries(fullMap).map(([k, v]) => [v, k]),
 );
@@ -47,18 +48,35 @@ export const encode = (text) => {
   if ([...text].length > 280) throw { code: "INPUT_TOO_LONG" };
   if (hasControlChar(text)) throw { code: "UNSUPPORTED_CONTROL_CHAR" };
 
-  return [...text].map((char) => fullMap[char] || char).join("");
+  // Check every char is a valid key in fullMap
+  for (const char of text) {
+    if (!(char in fullMap)) {
+      throw {
+        code: "UNSUPPORTED_CONTROL_CHAR",
+        message: `Unsupported character: ${char}`,
+      };
+    }
+  }
+
+  return [...text].map((char) => fullMap[char]).join("");
 };
 
 export const decode = (encoded) => {
   if ([...encoded].length > 280) throw { code: "INPUT_TOO_LONG" };
   if (hasControlChar(encoded)) throw { code: "UNSUPPORTED_CONTROL_CHAR" };
 
+  // Check every char is either in reverseMap or a normal letter
+  for (const char of encoded) {
+    if (!(char in reverseMap) && !/[A-Za-z]/.test(char)) {
+      throw { code: "UNKNOWN_SYMBOL", message: `Unknown symbol: ${char}` };
+    }
+  }
+
   return [...encoded]
     .map((char) => {
       if (char in reverseMap) return reverseMap[char];
       if (/[A-Za-z]/.test(char)) return char;
-      return char; // emoji, punctuation
+      return char; // punctuation, emoji (allowed)
     })
     .join("");
 };
